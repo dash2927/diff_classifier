@@ -718,6 +718,150 @@ def msd_ratio(track, fram1=3, fram2=100):
              dframe['Frame'][fram1]/dframe['Frame'][fram2])
     return ratio
 
+def MSDS_stats(track):
+    """
+    Calculates the mean, variance, min, and max msds for the given track
+
+    Parameters
+    ----------
+    track : pandas.core.frame.DataFrame
+        At a minimum, must contain a Frames and a MSDs column.  The function
+        msd_calc can be used to generate the correctly formatted pd dataframe.
+
+    Returns
+    -------
+    msds_mean : float
+        Mean MSDS of the entire track
+    msds_var : float
+        Variance of the entire track
+    msds_min : float
+        Minimum MSDS of the entire track
+    msds_max : float
+        Maximum MSDS of the entire track
+    """
+    for val in track.groupby(['Track_ID'])['MSDs']:
+        prev = 0
+        list = []
+        for point in val[1].dropna():
+            list.append(point-prev)
+            prev = point
+        msds_mean.append(np.mean(list))
+        msds_var.append(np.var(list))
+        msds_min.append(np.min(list))
+        msds_max.append(np.max(list))
+    pass
+
+def turn_angle(track):
+    """
+    The turning angle takes a counterclockwise angle from one point to the other. For non magnitude angle, a negative value indicates a turn to the left of the regular trajectory. A positive value indicates a turn to the right from the regular trajectory. A value of 0 indicates a straight line.
+
+    Parameters
+    ----------
+    track : pandas.core.frame.DataFrame
+        At a minimum, must contain a Frames and a MSDs column.  The function
+        msd_calc can be used to generate the correctly formatted pd dataframe.
+
+    Returns
+    -------
+    angle_param : list (1x3) of floats
+        angle param is a 1x3 list of float values that contain angle_mean (the mean of angle values calculated for the track), angle_mag_mean (mean of magnitude of the turning angle), and angle_var (variance of the turning angle)
+        
+    """
+    def _3ptangleCC(pta, ptb, ptc):
+
+        ang = math.degrees(
+            math.atan2(ptc[1]-ptb[1], ptc[0]-ptb[0]) - math.atan2(pta[1]-ptb[1], pta[0]-ptb[0]))
+        return ang + 360 if ang < 0 else ang
+    list_x = []
+    list_y = []
+    angle_list = []
+    angle_param = []
+    angle_mean = []
+    angle_mag_mean = []
+    angle_var = []
+    num_tracks = int(track['Track_ID'].max())
+    for track_val in range(num_tracks):
+        list_x.append([track[track.Track_ID.isin([track_val])]['X'].dropna()][0].tolist())
+        list_y.append([track[track.Track_ID.isin([track_val])]['Y'].dropna()][0].tolist())
+    
+    for i in range(num_tracks):
+        angle = [0]
+        for j in range(1,len(list_x[i])-1):
+            pta = (list_x[i][j-1], list_y[i][j-1])
+            ptb = (list_x[i][j], list_y[i][j])
+            ptc = (list_x[i][j+1], list_y[i][j+1])
+            angle.append(180.00 - _3ptangleCC(pta,ptb,ptc)) 
+            angle_mean = np.mean(angle)
+            angle_mag_mean = np.mean(np.abs(angle))
+            angle_var = np.var(np.abs(angle))
+        angle_list.append(angle)
+        angle_param.append([angle_mean, angle_mag_mean, angle_var])
+    return angle_param
+
+def convex_hull(track):
+    """
+    The convex hull of a track is the area within a parameter around all datapoints within the track. The list returned in this method contains the values for the spatial convex hull running a "QJn" joggled input to avoid precision errors and a normalized spatial convex hull based on the sqrt of the length of the track.
+
+    Parameters
+    ----------
+    track : pandas.core.frame.DataFrame
+        At a minimum, must contain a Frames and a MSDs column.  The function
+        msd_calc can be used to generate the correctly formatted pd dataframe.
+
+    Returns
+    -------
+    hull_param : list of floats
+        list of convex hull and normalized convex hull
+    """
+    import scipy.spatial
+    pos = []
+    hull_param = []
+    list_x = []
+    list_y = []
+
+    num_tracks = int(traj['Track_ID'].max())
+    for track_val in range(num_tracks):
+        list_x.append([traj[traj.Track_ID.isin([track_val])]['X'].dropna()][0].tolist())
+        list_y.append([traj[traj.Track_ID.isin([track_val])]['Y'].dropna()][0].tolist())
+    for i in range(num_tracks):
+        list = []
+        for j in range(len(list_x[i])):
+            list.append([list_x[i][j], list_y[i][j]])
+        pos.append(list)
+    for i in range(len(pos)):
+        CH = scipy.spatial.ConvexHull(pos[i], qhull_options="QJn")
+        CH_vol = CH.volume # Using "volume" b/c 2d array
+        hull_param.append([CH_vol, CH_vol/math.sqrt(len(pos[i]))])
+    return hull_param
+
+def dist_stats(track):
+    """
+    The turning angle takes a counterclockwise angle from one point to the other. For non magnitude angle, a negative value indicates a turn to the left of the regular trajectory. A positive value indicates a turn to the right from the regular trajectory. A value of 0 indicates a straight line.
+
+    Parameters
+    ----------
+    track : pandas.core.frame.DataFrame
+        At a minimum, must contain a Frames and a MSDs column.  The function
+        msd_calc can be used to generate the correctly formatted pd dataframe.
+
+    Returns
+    -------
+    dist_param : list (1x3) of floats
+        dist_param is a 1x3 list of float values that contain total distance (the total distance that a particle traversed over the time period), net distance (the net distance the particle traveled from begining to end of the time period), and progression (a ratio of net distance over total distance)
+    """
+    def _dist2pt(pta, ptb):
+        return math.hypot(ptb[1] - ptb[0], pta[1] - pta[0])
+
+    dist_param = []
+    for i in range(len(pos)):
+        dist = [0]
+        for j in range(len(pos[i])-1):
+            dist.append(dist2pt(pos[i][j],pos[i][j+1]))
+        dist_tot = np.sum(dist)
+        dist_net = dist2pt(pos[i][0],pos[i][-1])
+        prog = dist_net/dist_tot
+        dist_param.append([dist_tot, dist_net, prog])
+    return dist_param
 
 def calculate_features(dframe, framerate=1, frame=(10, 100)):
     """Calculates multiple features from input MSD dataset and stores in pandas
@@ -770,6 +914,10 @@ def calculate_features(dframe, framerate=1, frame=(10, 100)):
            'efficiency': holder,
            'straightness': holder,
            'MSD_ratio': holder,
+           'MSD_mean': holder,
+           'MSD_var': holder,
+           'MSD_max': holder,
+           'MSD_min': holder,
            'frames': holder,
            'X': holder,
            'Y': holder,
@@ -777,7 +925,16 @@ def calculate_features(dframe, framerate=1, frame=(10, 100)):
            'Mean_Intensity': holder,
            'SN_Ratio': holder,
            'Deff1': holder,
-           'Deff2': holder}
+           'Deff2': holder
+           'angle_mean': holder, 
+           'angle_mag_mean': holder, 
+           'angle_var': holder
+           'convex_hull': holder,
+           'convex_hull_norm': holder,
+           'dist_tot': holder,
+           'dist_net': holder,
+           'progression': holder
+           }
 
     datai = pd.DataFrame(data=die)
 
@@ -811,7 +968,19 @@ def calculate_features(dframe, framerate=1, frame=(10, 100)):
                                                      single_track['Frame'][
                                                       single_track.shape[0]-2])
         else:
-            datai['MSD_ratio'][particle] = np.nan
+            datai['MSD_ratio'][particle] = np.nan  
+        (datai['MSD_mean'][particle],
+         datai['MSD_var'][particle],
+         datai['MSD_max'][particle],
+         datai['MSD_min'][particle]) = MSDS_stats(single_track)
+        (datai['angle_mean'][particle],
+         datai['angle_mag_mean'][particle],
+         datai['angle_var'][particle]) = turn_angle(single_track)
+        (datai['convex_hull'][particle],
+         datai['convex_hull_norm'][particle]) = convex_hull(single_track)
+        (datai['dist_tot'][particle],
+         datai['dist_net'][particle],
+         datai['progression'][particle]) = dist_stats(single_track)
 
         try:
             datai['Deff1'][particle] = single_track['MSDs'][frame[0]] / (4*frame[0])
@@ -829,7 +998,6 @@ def calculate_features(dframe, framerate=1, frame=(10, 100)):
               'Quality'].replace([np.inf, -np.inf], np.nan).dropna(how="all").values)
         datai['SN_Ratio'][particle] = np.nanmean(single_track[
               'SN_Ratio'].replace([np.inf, -np.inf], np.nan).dropna(how="all").values)
-
     return datai
 
 

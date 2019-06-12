@@ -283,10 +283,10 @@ def regress_sys(folder, all_videos, yfit, training_size, randselect=True,
     ----------
     folder : str
         S3 directory containing video files specified in all_videos.
-    all_videos: list of str
+    all_videos : list of str
         Contains prefixes of video filenames of entire video set to be
         tracked.  Training dataset will be some subset of these videos.
-    yfit: numpy.ndarray
+    yfit : numpy.ndarray
         Contains manually acquired quality levels using Trackmate for the
         files contained in the training dataset.
     training_size : int
@@ -297,7 +297,7 @@ def regress_sys(folder, all_videos, yfit, training_size, randselect=True,
     trainingdata : list of str
         Optional manually selected prefixes of video filenames to be
         used as training dataset.
-    have_output: bool
+    have_output : bool
         If you have already acquired the quality values (yfit) for the
         training dataset, set to True.  If False, it will output the files
         the user will need to acquire quality values for.
@@ -328,7 +328,7 @@ def regress_sys(folder, all_videos, yfit, training_size, randselect=True,
     else:
         tprefix = trainingdata
 
-    if have_output is True:
+    if have_output:
         # Define descriptors
         descriptors = np.zeros((training_size, 4))
         counter = 0
