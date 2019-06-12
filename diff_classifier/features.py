@@ -765,7 +765,7 @@ def turn_angle(track):
     -------
     angle_param : list (1x3) of floats
         angle param is a 1x3 list of float values that contain angle_mean (the mean of angle values calculated for the track), angle_mag_mean (mean of magnitude of the turning angle), and angle_var (variance of the turning angle)
-        
+
     """
     def _3ptangleCC(pta, ptb, ptc):
 
@@ -925,10 +925,10 @@ def calculate_features(dframe, framerate=1, frame=(10, 100)):
            'Mean_Intensity': holder,
            'SN_Ratio': holder,
            'Deff1': holder,
-           'Deff2': holder
+           'Deff2': holder,
            'angle_mean': holder, 
            'angle_mag_mean': holder, 
-           'angle_var': holder
+           'angle_var': holder,
            'convex_hull': holder,
            'convex_hull_norm': holder,
            'dist_tot': holder,
